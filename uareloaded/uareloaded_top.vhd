@@ -126,7 +126,7 @@ architecture RTL of uareloaded_top is
 	
 	
 
-COMPONENT  PCW
+COMPONENT  MTX512
 	PORT
 	(
 		CLOCK_27 :	IN STD_LOGIC;
@@ -239,7 +239,7 @@ port map(
 dac_l_s <= (dac_l & dac_l(9 downto 4));
 dac_r_s <= (dac_r & dac_r(9 downto 4));
 
-guest: COMPONENT  PCW
+guest: COMPONENT  MTX512
 	PORT map
 	(
 		CLOCK_27 => CLOCK_50,

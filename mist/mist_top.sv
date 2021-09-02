@@ -56,13 +56,16 @@ module mist_top (
    output [5:0]  VGA_G,
    output [5:0]  VGA_B,
 
-   input     UART_RXD,
-   output    UART_TXD
+   input     UART_RX,
+   output    UART_TX
 );
 
-OricAtmos_MiST  guest
+MTX512  guest
 (
-	.*
+	.*,
+	.DAC_L(),
+	.DAC_R(),
+	.TAPE_IN()
 );
 
 endmodule
