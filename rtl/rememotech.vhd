@@ -33,6 +33,7 @@ entity rememotech is
     SRAM_WE_N           : out std_logic;
     SRAM_D              : out std_logic_vector(7 downto 0);
     SRAM_Q              : in std_logic_vector(7 downto 0);
+	 SRAM_RDY            : in std_logic;
     -- SD card
     SD_CLK              : out std_logic;
     SD_CMD              : out std_logic;
@@ -88,11 +89,6 @@ entity rememotech is
     --
 	 LED                 : out std_logic;
 	 --
-	 Bram_Data 				: out STD_LOGIC_VECTOR (15 DOWNTO 0);
-	 Z80_Addr 				: out STD_LOGIC_VECTOR (15 DOWNTO 0);
-	 Z80_Data 				: out STD_LOGIC_VECTOR (15 DOWNTO 0);
-	 Z80F_BData    		: out STD_LOGIC_VECTOR (15 DOWNTO 0);
-	 Hex						: out STD_LOGIC_VECTOR (15 DOWNTO 0);
 	 EKey           		: in std_logic;
     key_ready  			: in  std_logic;
     key_stroke 			: in  std_logic;
@@ -111,6 +107,7 @@ architecture behavior of rememotech is
     port
       (
       clk_50mhz   : in  std_logic;
+		ram_ready   : in  std_logic;
       div_cpu     : in  std_logic_vector(2 downto 0);
       clk_cpu     : out std_logic;
       clk_timer16 : out std_logic;
@@ -654,6 +651,7 @@ begin
     port map
       (
       clk_50mhz   => CLOCK_50,
+		ram_ready   => SRAM_RDY,
       div_cpu     => div_cpu,
       clk_cpu     => clk_cpu,
       clk_timer16 => ctc_timer16,

@@ -32,6 +32,7 @@ entity clock_divider is
   port
     (
     clk_50mhz   : in  std_logic;
+	 ram_ready   : in  std_logic;
     div_cpu     : in  std_logic_vector(2 downto 0); -- Turbo buttons!
       -- 000 => 25.000MHz
       -- 001 => 12.500MHz
@@ -70,7 +71,7 @@ begin
   begin
     if rising_edge(clk_50mhz) then
 
-      clk_cpu <= clk_cpu_int;
+      clk_cpu <= clk_cpu_int and ram_ready;
       if counter_cpu = "000" then
         clk_cpu_int <= not clk_cpu_int;
         counter_cpu <= div_cpu;

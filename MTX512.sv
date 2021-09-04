@@ -83,6 +83,8 @@ pll pll
 	.locked(locked)
 );
 
+wire clk_sys=clk_25Mhz;
+
 
 ///////////////// SDRAM ///////////////////////////
 
@@ -118,8 +120,12 @@ assign SDRAM_CLK=clk_ram_ph;
 
 wire forced_scandoubler;
 wire  [1:0] buttons;
+wire  [1:0] switches;
 wire [31:0] status;
+wire ps2_kbd_clk,ps2_kbd_data;
+wire ps2_mouse_clk,ps2_mouse_data;
 wire [10:0] ps2_key;
+wire [24:0] ps2_mouse;
 wire        ioctl_download;
 wire        ioctl_wr;
 wire [22:0] ioctl_addr;
@@ -127,6 +133,7 @@ wire  [7:0] ioctl_data;
 wire  [7:0] ioctl_index;
 
 wire [31:0] joy1, joy2;
+wire [15:0] joystick_analog_0,joystick_analog_1;
 
 wire ypbpr;
 
@@ -143,20 +150,18 @@ wire  [7:0] sd_buff_dout;
 wire  [7:0] sd_buff_din;
 wire        sd_buff_wr;
 wire        sd_ack_conf;
-wire        Ps2_Clk;
-wire        Ps2_Dat;
 
 
  
 mist_io #(.STRLEN($size(CONF_STR)>>3),.PS2DIV(100)) mist_io
 (
+   .*,
 	.SPI_SCK   (SPI_SCK),
    .CONF_DATA0(CONF_DATA0),
    .SPI_SS2   (SPI_SS2),
    .SPI_DO    (SPI_DO),
    .SPI_DI    (SPI_DI),
 
-	.clk_sys(clk_50Mhz),
 	.conf_str(CONF_STR),
 
 	.buttons(buttons),
@@ -185,9 +190,13 @@ mist_io #(.STRLEN($size(CONF_STR)>>3),.PS2DIV(100)) mist_io
 	 .img_mounted(img_mounted),
 	 .img_size(img_size),
 
-	 .ps2_kbd_clk(Ps2_Clk),
-	 .ps2_kbd_data(Ps2_Dat),
+	 .ps2_kbd_clk(),
+	 .ps2_kbd_data(),
     .ps2_key(ps2_key),
+	 
+	 .ps2_mouse_clk(),
+	 .ps2_mouse_data(),
+	 
 
 	.joystick_0(joy1), // HPS joy [4:0] {Fire, Up, Down, Left, Right}
 	.joystick_1(joy2)
@@ -204,7 +213,7 @@ wire reset = (!locked | status[0] | buttons[1] | ioctl_download );
 
 
 dac_dsm2v #(8) dac_l (
-   .clock_i      (clk_50Mhz),
+   .clock_i      (clk_sys),
    .reset_i      (0      ),
    .dac_i        (AudioOut),
    .dac_o        (AUDIO_L)
@@ -242,6 +251,7 @@ rememotech rememotech
     .SRAM_WE_N           (n_sRamWE),
     .SRAM_D              (sramDataIn),
 	 .SRAM_Q              (sramDataOut),
+	 .SRAM_RDY            (ram_ready),
     .LED                 (LED),
     // switches
     .SW                  ({CpuSpeed,status[4],status[2],~status[3],2'b0,2'b0}), //Forzamos monitor(6), Pal normal-60Hz(5:4), y sin externalrom(1:0)
@@ -266,12 +276,11 @@ rememotech rememotech
     .sound_out           (AudioOut)
 );
 
-wire clk_sys;
 wire [7:0] AudioOut;
 
 wire key_strobe = old_keystb ^ ps2_key[10];
 reg old_keystb = 0;
-always @(posedge clk_50Mhz) old_keystb <= ps2_key[10];
+always @(posedge clk_sys) old_keystb <= ps2_key[10];
 
 
 
@@ -283,7 +292,6 @@ wire [3:0] r,g,b;
 video_mixer #(.LINE_LENGTH(380)) video_mixer
 (
    .*,
-	.clk_sys(clk_50Mhz),
    .ce_pix(clk_25Mhz),
    .ce_pix_actual(clk_25Mhz),
    .scandoubler_disable(1),
@@ -318,8 +326,8 @@ wire sdhc=1'b0;
 sd_card sd_card
 (
         .*,
-		  .clk_sys(clk_50Mhz),
-        .clk_spi(clk_ram_ph), 
+		  //.clk_sys(clk_50Mhz),
+        .clk_spi(clk_ram), 
         .sdhc(sdhc),
         .sck(sdclk),
         .ss(sdss),
