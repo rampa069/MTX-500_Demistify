@@ -38,9 +38,7 @@ entity rememotech is
     SD_CMD              : out std_logic;
     SD_DAT              : in  std_logic;
     SD_DAT3             : out std_logic;
-    -- PS/2 keyboard
-    PS2_CLK             : in std_logic;
-    PS2_DAT             : in std_logic;
+
     -- switches
     SW                  : in  std_logic_vector(9 downto 0);
     -- key switches
@@ -83,11 +81,12 @@ entity rememotech is
     -- Daughter board, 2nd monitor
     G1_R,G1_G,G1_B      : out std_logic_vector(3 downto 0);
     G1_HS,G1_VS         : out std_logic;
-	 
-	 Clk_Video           : out std_logic;
+	 -- Clocks
+	 clk_video_i         : in std_logic;
+ 	 clk_cpu_o			   : out std_logic;
+
     --
 	 LED                 : out std_logic;
-	 RFSH_n              : out std_logic; 
 	 --
 	 Bram_Data 				: out STD_LOGIC_VECTOR (15 DOWNTO 0);
 	 Z80_Addr 				: out STD_LOGIC_VECTOR (15 DOWNTO 0);
@@ -98,7 +97,6 @@ entity rememotech is
     key_ready  			: in  std_logic;
     key_stroke 			: in  std_logic;
     key_code   			: in  std_logic_vector(9 downto 0);
-	 clk_sys					: out std_logic;
 	 -- Audio
 	 sound_out	    		: out std_logic_vector(7 downto 0)
 	 
@@ -394,7 +392,6 @@ architecture behavior of rememotech is
   component boot_rom
     port
       (
-		clk  : in  std_logic;
       addr : in  std_logic_vector(9 downto 0);
       q    : out std_logic_vector(7 downto 0)
       );
@@ -649,8 +646,7 @@ architecture behavior of rememotech is
 --  signal SRAM_D	: std_logic_vector(15 downto 0);
 --  signal SRAM_Q	: std_logic_vector(15 downto 0);  
   
---MVM
-  signal clk_25mhz_bak : std_logic;
+
   
 begin
 
@@ -662,7 +658,7 @@ begin
       clk_cpu     => clk_cpu,
       clk_timer16 => ctc_timer16,
       clk_counter => ctc_counter,
-      clk_25mhz   => clk_25mhz,
+      clk_25mhz   => open,
       clk_4mhz    => clk_4mhz,
       clk_1mhz    => clk_1mhz
       );
@@ -719,36 +715,6 @@ begin
       q_vdp     => vdp_vram_q
       );
 
-
-		
---  U_Memory : Memory
---    port map (
---      clk_host  => clk_cpu,
---
---      addr_host => SRAM_ADDR,
---      d_host    => SRAM_D,
---      lb_host   => not SRAM_LB_N,
---      ub_host   => not SRAM_UB_N,
---      we_host   => not SRAM_WE_N, 
---      ce_host   => not SRAM_CE_N, 
---      oe_host   => not SRAM_OE_N, 
---	 
---      q_host    => SRAM_Q
---
---      );
-
-
---	U_RamRom	: RamRom
---	port map (
---		address 	=> SRAM_ADDR,
---		byteena 	=> not SRAM_UB_N & not SRAM_LB_N,
---		clken 	=> not SRAM_CE_N, --Dejo sin usar la señal OutputEnable que si usa el core Posible Punto de Fallo.
---		clock 	=> CLOCK_50 ,
---		rden     => not SRAM_OE_n,
---		data 		=> SRAM_D ,
---		wren 		=> not SRAM_WE_N,
---		q 			=> SRAM_Q 
---	);
 
 		
 		
@@ -898,7 +864,6 @@ begin
   U_ROM : boot_rom
     port map
       (
-		clk  => clk_cpu,
       addr => A(9 downto 0),
       q    => rom_q
       );
@@ -996,25 +961,14 @@ begin
   RESET_n <= not KEY(3);-- and ( extra_keys(12) or extra_keys(13) );
   --extra_keys <= "11111111111111";-- & EKey; 
   
-  --Clk_Video <= clk_25mhz; --Sacamos a fuera el clock con el que mandamos sobre el vdp, supuestamente Clock de Video.
-  Clk_Video <= clk_25mhz;
-  clk_sys <= clk_cpu; --Sacamos a fuera el clock de CPU como clk_sys para darselo a HPS_IO
-  
-  
+  clk_25Mhz <= clk_video_i;
+  clk_cpu_o   <= clk_cpu;
   sound_out <= sound_output;
   
   
   -- Is the Flash memory visible in the Z80 address space?
   flash_vis <= '1' when ( iobyte(3 downto 0) = "1111" ) else '0';
-  
-  Bram_Data <= SRAM_Q & SRAM_Q;
-  Z80_Addr <= A;
-  Z80_DATA <= DI & DO;
-  Z80F_BData <= "000" & oe & "000" & fe & "000" & se & "000" & we;
-  Hex <= digit3 & digit2 & digit1 & digit0;
-  
- 
- 
+    
 
   -- Set clock speed according to user choice
   -- but as I can't easily get wait states to work
@@ -1358,8 +1312,8 @@ begin
   -- flicker light if SD card recently spoken to
   -- 25 bit counter, 2**25/25000000 = 1.34s of flickering, and the SD Card
   -- driver should consider drive warm for the first half of that
-  --LED <= '0' when ( sd_temp = "00000000000000000000000000" ) else sd_temp(19);
-  LED <= not RESET_n;
+  LED <= '0' when ( sd_temp = "00000000000000000000000000" ) else sd_temp(19);
+  --LED <= not RESET_n;
   -- VGA monitor displays either 80 column or VDP
   VGA_R  <= vdp_r      when ( SW(6) = '1' ) else mon_r&mon_r&mon_r&mon_r;
   VGA_G  <= vdp_g      when ( SW(6) = '1' ) else mon_g&mon_g&mon_g&mon_g;

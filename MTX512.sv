@@ -71,14 +71,15 @@ localparam CONF_STR = {
 
 /////////////////  CLOCKS  ////////////////////////
 
-wire clk_25Mhz,clk_ram,clk_ram_ph,locked,CLK_50;
+wire clk_25Mhz,clk_ram,clk_ram_ph,locked,clk_50Mhz,clk_cpu;
 
 pll pll
 (
 	.inclk0(CLOCK_27),
-	.c0(CLK_50),
-	.c1(clk_ram),
-	.c2(clk_ram_ph),
+	.c0(clk_50Mhz),
+	.c1(clk_25Mhz),
+	.c2(clk_ram),
+	.c3(clk_ram_ph),
 	.locked(locked)
 );
 
@@ -95,31 +96,7 @@ wire n_sRamWE;
 wire n_sRamOE;
 wire n_sRamCS;
 
-//assign SDRAM_CLK=clk_ram_ph;
-//ssdram ram
-//(
-//  .clock_i   (clk_ram),
-//  .reset_i   (~locked),
-//  .refresh_i (1'b1),
-//  //
-//  .addr_i     (ioctl_download ? ioctl_addr : sramAddress),
-//  .data_i     (ioctl_download ? ioctl_data : sramDataIn ),
-//  .data_o     (sramDataOut),
-//  .cs_i       (1'b1),
-//  .oe_i       (1'b1),
-//  .we_i       (ioctl_download ? ioctl_wr : ~n_sRamWE),
-//  //
-//  .mem_cke_o    (SDRAM_CKE),
-//  .mem_cs_n_o   (SDRAM_nCS),
-//  .mem_ras_n_o  (SDRAM_nRAS),
-//  .mem_cas_n_o  (SDRAM_nCAS),
-//  .mem_we_n_o   (SDRAM_nWE),
-//  .mem_udq_o    (SDRAM_DQMH),
-//  .mem_ldq_o    (SDRAM_DQML),
-//  .mem_ba_o     (SDRAM_BA),
-//  .mem_addr_o   (SDRAM_A),
-//  .mem_data_io  (SDRAM_DQ)
-//);
+
 
 wire ram_ready;
 sram ram
@@ -145,7 +122,7 @@ wire [31:0] status;
 wire [10:0] ps2_key;
 wire        ioctl_download;
 wire        ioctl_wr;
-wire [18:0] ioctl_addr;
+wire [22:0] ioctl_addr;
 wire  [7:0] ioctl_data;
 wire  [7:0] ioctl_index;
 
@@ -179,7 +156,7 @@ mist_io #(.STRLEN($size(CONF_STR)>>3),.PS2DIV(100)) mist_io
    .SPI_DO    (SPI_DO),
    .SPI_DI    (SPI_DI),
 
-	.clk_sys(clk_25Mhz),
+	.clk_sys(clk_50Mhz),
 	.conf_str(CONF_STR),
 
 	.buttons(buttons),
@@ -218,21 +195,16 @@ mist_io #(.STRLEN($size(CONF_STR)>>3),.PS2DIV(100)) mist_io
 );
 
 /////////////////  RESET  /////////////////////////
-wire reset;
-wire old_dio;
-always @(posedge clk_25Mhz) begin
-	old_dio <= ioctl_download;
-	reset <= (!locked | status[0] | buttons[1] | ioctl_download);
-end
+
+wire reset = (!locked | status[0] | buttons[1] | ioctl_download );
 
 //////////////// LED ///////////////////////////
-//assign LED=reset;
 
 ////////////////  main  ////////////////////////
 
 
 dac_dsm2v #(8) dac_l (
-   .clock_i      (clk_25Mhz),
+   .clock_i      (clk_50Mhz),
    .reset_i      (0      ),
    .dac_i        (AudioOut),
    .dac_o        (AUDIO_L)
@@ -255,7 +227,7 @@ wire [2:0] CpuSpeed = status[7:5];
 
 rememotech rememotech
     (
-    .CLOCK_50            (CLK_50),//(clk),//(status[9]),//(CLK_50M),
+    .CLOCK_50            (clk_50Mhz),//(clk),//(status[9]),//(clk_50MhzM),
     // SD card
     .SD_CLK              (sdclk),
     .SD_CMD              (sdmosi),
@@ -271,9 +243,6 @@ rememotech rememotech
     .SRAM_D              (sramDataIn),
 	 .SRAM_Q              (sramDataOut),
     .LED                 (LED),
-    // PS/2 keyboard
-    .PS2_CLK             (Ps2_Clk),
-    .PS2_DAT             (Ps2_Dat),
     // switches
     .SW                  ({CpuSpeed,status[4],status[2],~status[3],2'b0,2'b0}), //Forzamos monitor(6), Pal normal-60Hz(5:4), y sin externalrom(1:0)
     // key switches
@@ -287,22 +256,22 @@ rememotech rememotech
  	 .VGA_HB              (HBlank),
 	 .VGA_VB              (VBlank),
 
-	 .Clk_Video           (clk_25Mhz),
- 
+	 .clk_video_i         (clk_25Mhz),
+    .clk_cpu_o           (), 
 	 
 	 .EKey                (status[9]),
-    .key_ready           (key_strobe),//key_ready), //: in  std_logic;
-    .key_stroke          (~ps2_key[9]), //: in  std_logic;
-    .key_code            ({1'b0,ps2_key[8:0]}), //: in  std_logic_vector(9 downto 0)
-    .clk_sys             (clk_sys),
+    .key_ready           (key_strobe),
+    .key_stroke          (~ps2_key[9]),
+    .key_code            ({1'b0,ps2_key[8:0]}),
     .sound_out           (AudioOut)
 );
 
 wire clk_sys;
 wire [7:0] AudioOut;
+
 wire key_strobe = old_keystb ^ ps2_key[10];
 reg old_keystb = 0;
-always @(posedge clk_25Mhz) old_keystb <= ps2_key[10];
+always @(posedge clk_50Mhz) old_keystb <= ps2_key[10];
 
 
 
@@ -314,7 +283,7 @@ wire [3:0] r,g,b;
 video_mixer #(.LINE_LENGTH(380)) video_mixer
 (
    .*,
-	.clk_sys(clk_25Mhz),
+	.clk_sys(clk_50Mhz),
    .ce_pix(clk_25Mhz),
    .ce_pix_actual(clk_25Mhz),
    .scandoubler_disable(1),
@@ -349,7 +318,7 @@ wire sdhc=1'b0;
 sd_card sd_card
 (
         .*,
-		  .clk_sys(CLK_50),
+		  .clk_sys(clk_50Mhz),
         .clk_spi(clk_ram_ph), 
         .sdhc(sdhc),
         .sck(sdclk),
