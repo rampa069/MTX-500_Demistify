@@ -59,12 +59,12 @@ module MTX512
 `include "build_id.v" 
 localparam CONF_STR = {
         "MTX512;;",
+		  "O4,Video Out,80Col,VDP;",
         "S0,IMGVHD,Load VHD;",
 		  "F0,ROM,Load ROM;",
-        "O4,Video Out,80Col,VDP;",
         "O2,PAL,Normal,Marat;",
         "O3,Hz,60,50;",
-        "O57,Cpu Mzh,12.5,12.5,8.333,6.25,5,4.166,3.571,3.125;",
+        "O57,Cpu Mzh,25,12.5,8.333,6.25,5,4.166,3.571,3.125;",
         "T0,Reset;",
         "V,v",`BUILD_DATE 
 };
@@ -76,10 +76,9 @@ wire clk_25Mhz,clk_ram,clk_ram_ph,locked,CLK_50;
 pll pll
 (
 	.inclk0(CLOCK_27),
-	.c0(clk_25Mhz),
+	.c0(CLK_50),
 	.c1(clk_ram),
 	.c2(clk_ram_ph),
-	.c3(CLK_50),
 	.locked(locked)
 );
 
@@ -232,9 +231,9 @@ end
 ////////////////  main  ////////////////////////
 
 
-dac #(8) dac_l (
-   .clk_i        (clk_25Mhz),
-   .res_n_i      (1      ),
+dac_dsm2v #(8) dac_l (
+   .clock_i      (clk_25Mhz),
+   .reset_i      (0      ),
    .dac_i        (AudioOut),
    .dac_o        (AUDIO_L)
 );
@@ -345,13 +344,13 @@ wire sdmosi;
 wire sdss;
 
 wire vsdmiso;
-wire sdhc=1'b1;
+wire sdhc=1'b0;
 
 sd_card sd_card
 (
         .*,
-		  .clk_sys(clk_25Mhz),
-        .clk_spi(clk_25Mhz), 
+		  .clk_sys(CLK_50),
+        .clk_spi(clk_ram_ph), 
         .sdhc(sdhc),
         .sck(sdclk),
         .ss(sdss),

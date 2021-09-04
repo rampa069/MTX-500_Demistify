@@ -14,6 +14,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity boot_rom is
   port
     (
+	 clk  : in  std_logic;
     addr : in  std_logic_vector(9 downto 0);
     q    : out std_logic_vector(7 downto 0)
     );
@@ -674,7 +675,11 @@ architecture behavior of boot_rom is
   signal rom : rom_type := init_rom;
 
 begin
-
-  q <= rom(to_integer(unsigned(addr)));
+  process ( clk )
+  begin
+    if rising_edge(clk) then
+      q <= rom(to_integer(unsigned(addr)));
+    end if;
+  end process;
 
 end behavior;

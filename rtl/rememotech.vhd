@@ -84,7 +84,7 @@ entity rememotech is
     G1_R,G1_G,G1_B      : out std_logic_vector(3 downto 0);
     G1_HS,G1_VS         : out std_logic;
 	 
-	 Clk_Video           : in std_logic;
+	 Clk_Video           : out std_logic;
     --
 	 LED                 : out std_logic;
 	 RFSH_n              : out std_logic; 
@@ -394,6 +394,7 @@ architecture behavior of rememotech is
   component boot_rom
     port
       (
+		clk  : in  std_logic;
       addr : in  std_logic_vector(9 downto 0);
       q    : out std_logic_vector(7 downto 0)
       );
@@ -661,7 +662,7 @@ begin
       clk_cpu     => clk_cpu,
       clk_timer16 => ctc_timer16,
       clk_counter => ctc_counter,
-      clk_25mhz   => clk_25mhz_bak,
+      clk_25mhz   => clk_25mhz,
       clk_4mhz    => clk_4mhz,
       clk_1mhz    => clk_1mhz
       );
@@ -897,6 +898,7 @@ begin
   U_ROM : boot_rom
     port map
       (
+		clk  => clk_cpu,
       addr => A(9 downto 0),
       q    => rom_q
       );
@@ -995,8 +997,7 @@ begin
   --extra_keys <= "11111111111111";-- & EKey; 
   
   --Clk_Video <= clk_25mhz; --Sacamos a fuera el clock con el que mandamos sobre el vdp, supuestamente Clock de Video.
-  clk_25mhz <= Clk_Video;
-  
+  Clk_Video <= clk_25mhz;
   clk_sys <= clk_cpu; --Sacamos a fuera el clock de CPU como clk_sys para darselo a HPS_IO
   
   
