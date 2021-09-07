@@ -89,6 +89,8 @@ entity rememotech is
     --
 	 LED                 : out std_logic;
 	 --
+	 PS2_CLK             : in std_logic;
+	 PS2_DAT             : in std_logic;
 	 EKey           		: in std_logic;
     key_ready  			: in  std_logic;
     key_stroke 			: in  std_logic;
@@ -448,6 +450,27 @@ architecture behavior of rememotech is
       phys_addr : out std_logic_vector(21 downto 13)
       );
   end component;
+  
+  component speculator is
+    port
+      (
+      extras    : in    std_logic;
+      RESET     : in    std_logic; 
+      m49       : in    std_logic;
+      PHI       : in    std_logic;
+      MREQ_n    : in    std_logic;
+      IORQ_n    : in    std_logic;
+      RD_n      : in    std_logic;
+      WR_n      : in    std_logic;
+      iobyte    : in    std_logic_vector( 7 downto 0);
+      A         : in    std_logic_vector(15 downto 0);
+      DI        : in    std_logic_vector( 7 downto 0);
+      DO        : out   std_logic_vector( 7 downto 0);
+      DO_valid  : out   std_logic;
+      INT_n     : in    std_logic;
+      NMI_n     : out   std_logic
+      );
+  end component;
 
   component accelerator is
     port
@@ -596,6 +619,15 @@ architecture behavior of rememotech is
   signal phys_addr : std_logic_vector(21 downto 13);
   signal flash_vis : std_logic;
 
+  -- Speculator
+  signal spec_extras   : std_logic := '0';
+  signal spec_DO       : std_logic_vector(7 downto 0);
+  signal spec_DO_valid : std_logic;
+  
+  signal romswe        : std_logic;
+  signal real_cassete  : std_logic;
+  
+  
   -- Accelerator
   signal accel_enabled  : std_logic := '0';
   signal accel_DO       : std_logic_vector(7 downto 0);
@@ -626,6 +658,7 @@ architecture behavior of rememotech is
   signal IORQ_n  : std_logic;
   signal RD_n    : std_logic;
   signal WR_n    : std_logic;
+  signal NMI_n   : std_logic;
   signal A       : std_logic_vector(15 downto 0);
   signal DI      : std_logic_vector(7 downto 0);
   signal DO      : std_logic_vector(7 downto 0);
@@ -803,7 +836,7 @@ begin
   U_MTXKBD : mtx_kbd
     port map
       (
-      clk_1mhz   => CLOCK_50,--clk_1mhz,
+      clk_1mhz   => clk_25Mhz,
       key_ready  => key_ready,
       key_stroke => key_stroke,
       key_code   => key_code,
@@ -882,6 +915,26 @@ begin
       phys_addr => phys_addr
       );
 
+	U_SPECULATOR : speculator
+    port map
+      (
+      extras   => spec_extras,
+      RESET    => not RESET_n,
+      m49      => CLOCK_50,
+      PHI      => clk_cpu,
+      MREQ_n   => MREQ_n,
+      IORQ_n   => IORQ_n,
+      RD_n     => RD_n,
+      WR_n     => WR_n,
+      iobyte   => iobyte,
+      A        => A,
+      DI       => DO,
+      DO       => spec_DO,
+      DO_valid => spec_DO_valid,
+      INT_n    => not ctc_interrupt,
+      NMI_n    => NMI_n
+      );	
+		
   U_ACCELERATOR : accelerator
     port map
       (
@@ -940,7 +993,7 @@ begin
       CLKEN   => one,
       WAIT_n  => one,
       INT_n   => not ctc_interrupt,
-      NMI_n   => one,
+      NMI_n   => NMI_n,
       BUSRQ_n => one,
       M1_n    => M1_n,
       MREQ_n  => MREQ_n,
@@ -1040,6 +1093,7 @@ begin
       otstb_n            <= '1';
       strobe_n           <= '1';
       rom2subpage        <= "000";
+		spec_extras        <= '0';
     elsif rising_edge(clk_cpu) then
       host_cell_addr     <= host_cell_addr;
       host_cell_write    <= host_cell_write;
@@ -1180,6 +1234,7 @@ begin
           when x"d6" | x"d7" =>
             sd_temp    <= (others => '1');
           when x"da" =>
+            spec_extras   <= DO(7);
             accel_enabled <= DO(6);
           when others =>
             -- nothing
@@ -1243,6 +1298,8 @@ begin
         DI <= SRAM_Q;--SRAM_DQ(15 downto 8);
       elsif fe = '1' then
         DI <= FL_DQ;
+		elsif spec_DO_valid = '1'then 
+		  DI <= spec_DO;
       elsif ere = '1' then
         DI <= G1_D;
       else
@@ -1290,7 +1347,8 @@ begin
           when x"d4" => DI <= sd_ready & sd_temp(24) & "000000";
           when x"d6"|x"d7" => DI <= sd_data;
           when x"d8" => DI <= "00000" & div_cpu;
-          when x"da" => DI <= "0" & accel_enabled & "000000";
+			 when x"d9" => DI <= "00000000"; --rememorizer
+          when x"da" => DI <= spec_extras & accel_enabled & "000000"; -- speculator
           when others => DI <= "XXXXXXXX";
         end case;
       end if;
@@ -1310,8 +1368,8 @@ begin
   -- flicker light if SD card recently spoken to
   -- 25 bit counter, 2**25/25000000 = 1.34s of flickering, and the SD Card
   -- driver should consider drive warm for the first half of that
-  LED <= '0' when ( sd_temp = "00000000000000000000000000" ) else sd_temp(19);
-  --LED <= not RESET_n;
+  --LED <= '0' when ( sd_temp = "00000000000000000000000000" ) else sd_temp(19);
+  LED <= key_ready;
   -- VGA monitor displays either 80 column or VDP
   VGA_R  <= vdp_r      when ( SW(6) = '1' ) else mon_r&mon_r&mon_r&mon_r;
   VGA_G  <= vdp_g      when ( SW(6) = '1' ) else mon_g&mon_g&mon_g&mon_g;
@@ -1321,9 +1379,7 @@ begin
   VGA_HB <= vdp_hblank when ( SW(6) = '1' ) else mon_hblank;
   VGA_VB <= vdp_vblank when ( SW(6) = '1' ) else mon_vblank;
 
-  -- TODO Hasta que lo implkemente en em modulo mon como en vdp
-  --mon_hblank <= '0';
-  --mon_vblank <= '0';
+
   
   -- 2nd VGA monitor displays the opposite
   G1_R   <= vdp_r     when ( SW(6) = '0' ) else mon_r&mon_r&mon_r&mon_r;

@@ -64,7 +64,7 @@ localparam CONF_STR = {
 		  "F0,ROM,Load ROM;",
         "O2,PAL,Normal,Marat;",
         "O3,Hz,60,50;",
-        "O57,Cpu Mzh,25,12.5,8.333,6.25,5,4.166,3.571,3.125;",
+        "O57,Cpu Mhz,25,12.5,8.333,6.25,5,4.166,3.571,3.125;",
         "T0,Reset;",
         "V,v",`BUILD_DATE 
 };
@@ -110,7 +110,7 @@ sram ram
 	.dout(sramDataOut),
 	.din(ioctl_download ? ioctl_data : sramDataIn),
 	.wtbt(2'b00),
-	.we(ioctl_download ? ioctl_wr    : ~n_sRamWE),
+	.we(ioctl_download  ? ioctl_wr   : ~n_sRamWE),
 	.rd(ioctl_download ? 1'b0        : ~n_sRamOE),
 	.ready(ram_ready)
 );
@@ -122,10 +122,19 @@ wire forced_scandoubler;
 wire  [1:0] buttons;
 wire  [1:0] switches;
 wire [31:0] status;
+
 wire ps2_kbd_clk,ps2_kbd_data;
 wire ps2_mouse_clk,ps2_mouse_data;
+
 wire [10:0] ps2_key;
 wire [24:0] ps2_mouse;
+
+wire        key_pressed;
+wire [7:0]  key_code;
+wire        key_strobe;
+wire        key_extended;
+
+
 wire        ioctl_download;
 wire        ioctl_wr;
 wire [22:0] ioctl_addr;
@@ -139,7 +148,7 @@ wire ypbpr;
 
 wire        img_readonly;
 wire  [1:0] img_mounted;
-wire [31:0] img_size;
+wire [63:0] img_size;
 
 wire [31:0] sd_lba;
 wire        sd_rd;
@@ -150,7 +159,9 @@ wire  [7:0] sd_buff_dout;
 wire  [7:0] sd_buff_din;
 wire        sd_buff_wr;
 wire        sd_ack_conf;
-
+wire        sd_busy;
+wire        sd_sdhc;
+wire        sd_conf;
 
  
 mist_io #(.STRLEN($size(CONF_STR)>>3),.PS2DIV(100)) mist_io
@@ -169,15 +180,13 @@ mist_io #(.STRLEN($size(CONF_STR)>>3),.PS2DIV(100)) mist_io
 	.scandoubler_disable(forced_scandoubler),
    .ypbpr     (ypbpr),
 	
-	.ioctl_ce(1),
+	.ioctl_ce(clk_cpu && ram_ready),
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_data),
 		
-	 .sd_sdhc(sdhc),
-	 .sd_conf(0),
 	 .sd_lba(sd_lba),
 	 .sd_rd(sd_rd),
 	 .sd_wr(sd_wr),
@@ -190,8 +199,8 @@ mist_io #(.STRLEN($size(CONF_STR)>>3),.PS2DIV(100)) mist_io
 	 .img_mounted(img_mounted),
 	 .img_size(img_size),
 
-	 .ps2_kbd_clk(),
-	 .ps2_kbd_data(),
+//	 .ps2_kbd_clk(),
+//	 .ps2_kbd_data(),
     .ps2_key(ps2_key),
 	 
 	 .ps2_mouse_clk(),
@@ -267,20 +276,26 @@ rememotech rememotech
 	 .VGA_VB              (VBlank),
 
 	 .clk_video_i         (clk_25Mhz),
-    .clk_cpu_o           (), 
+    .clk_cpu_o           (clk_cpu),
 	 
-	 .EKey                (status[9]),
+	 .PS2_CLK             (ps2_kbd_clk),
+	 .PS2_DAT             (ps2_kbd_data),
+	 
+	 
+	 .EKey                (key_extended),
     .key_ready           (key_strobe),
-    .key_stroke          (~ps2_key[9]),
-    .key_code            ({1'b0,ps2_key[8:0]}),
+    .key_stroke          (key_pressed),
+    .key_code            (key_code),
     .sound_out           (AudioOut)
 );
 
+
+
 wire [7:0] AudioOut;
 
-wire key_strobe = old_keystb ^ ps2_key[10];
-reg old_keystb = 0;
-always @(posedge clk_sys) old_keystb <= ps2_key[10];
+//wire key_strobe = old_keystb ^ ps2_key[10];
+//reg old_keystb = 0;
+//always @(posedge clk_sys) old_keystb <= ps2_key[10];
 
 
 
@@ -335,5 +350,16 @@ sd_card sd_card
         .miso(vsdmiso)
 );
 
-
+//sd_card sd_card
+//(
+//        .*,
+//		  //.clk_sys(clk_),
+//        //.clk_spi(clk_ram),
+//		  .img_mounted(img_mounted[0]),
+//		  .allow_sdhc(0),
+//        .sd_sck(sdclk),
+//        .sd_cs(sdss),
+//        .sd_sdi(sdmosi),
+//        .sd_sdo(vsdmiso)
+//);
 endmodule

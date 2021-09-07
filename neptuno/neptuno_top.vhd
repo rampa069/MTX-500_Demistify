@@ -115,6 +115,7 @@ architecture RTL of neptuno_top is
 	
 -- IO
 
+   signal TMP_LED : std_logic;
 	signal joya : std_logic_vector(7 downto 0);
 	signal joyb : std_logic_vector(7 downto 0);
 	signal joyc : std_logic_vector(7 downto 0);
@@ -333,10 +334,12 @@ guest: COMPONENT  MTX512
 		VGA_B => vga_blue(7 downto 2),
 		AUDIO_L => sigma_l,
 		AUDIO_R => sigma_r,
-		LED     => LED,
+		LED     => TMP_LED,
 		DAC_L   => DAC_L,
 		DAC_R   => DAC_R
 );
+
+LED <= not TMP_LED;
 
 -- Pass internal signals to external SPI interface
 sd_clk <= spi_clk_int;

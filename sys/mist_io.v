@@ -84,6 +84,12 @@ module mist_io #(parameter STRLEN=0, parameter PS2DIV=100)
 	output            ps2_mouse_clk,
 	output reg        ps2_mouse_data,
 
+	// ps2 other interface
+	output reg        key_pressed,  // 1-make (pressed), 0-break (released)
+	output reg        key_extended, // extended code
+	output reg  [7:0] key_code,     // key scan code
+	output reg        key_strobe,   // key data valid
+	
 	// ps2 alternative interface. 
 
 	// [8] - extended, [9] - pressed, [10] - toggles with every press/release
@@ -183,13 +189,15 @@ reg [31:0] ps2_key_raw = 0;
 wire       pressed  = (ps2_key_raw[15:8] != 8'hf0);
 wire       extended = (~pressed ? (ps2_key_raw[23:16] == 8'he0) : (ps2_key_raw[15:8] == 8'he0));
 
+
 // transfer to clk_sys domain
 always@(posedge clk_sys) begin
 	reg old_ss1, old_ss2;
 	reg old_ready1, old_ready2;
 	reg [2:0] b_wr;
 	reg       got_ps2 = 0;
-
+   reg  old_stb;
+	
 	old_ss1 <= CONF_DATA0;
 	old_ss2 <= old_ss1;
 	old_ready1 <= spi_data_ready;
@@ -204,9 +212,15 @@ always@(posedge clk_sys) begin
 		sd_ack       <= 0;
 		sd_ack_conf  <= 0;
 		sd_buff_addr <= 0;
+		key_strobe <= 0;
 		if(got_ps2) begin
 			if(cmd == 4) ps2_mouse[24] <= ~ps2_mouse[24]; 
 			if(cmd == 5) begin
+			   key_strobe <= 1'b1;
+				key_pressed  <= ~pressed;
+				key_extended <= extended;
+				key_code <= ps2_key_raw[7:0];
+				
 				ps2_key <= {~ps2_key[10], pressed, extended, ps2_key_raw[7:0]};
 				if(ps2_key_raw == 'hE012E07C) ps2_key[9:0] <= 'h37C; // prnscr pressed
 				if(ps2_key_raw == 'h7CE0F012) ps2_key[9:0] <= 'h17C; // prnscr released
@@ -478,7 +492,7 @@ always@(posedge SPI_SCK, posedge SPI_SS2) begin
 				case(ioctl_index[4:0]) 
 							1: addr <= 25'h200000; // TRD buffer  at 2MB
 							2: addr <= 25'h400000; // tape buffer at 4MB 
-					default: addr <= 25'h150000; // boot rom
+					default: addr <= 25'h000000; // boot rom
 				endcase
 				rdownload <= 1; 
 			end else begin
