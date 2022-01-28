@@ -1,3 +1,6 @@
 [submodule "rtl/T80"]
 	path = rtl/T80
 	url = git@github.com:mist-devel/T80.git
+[submodule "DeMiSTify"]
+	path = DeMiSTify
+	url = https://github.com/robinsonb5/DeMiSTify.git

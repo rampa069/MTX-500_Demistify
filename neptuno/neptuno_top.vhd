@@ -2,6 +2,10 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+
+library work;
+use work.demistify_config_pkg.all;
+
 -- -----------------------------------------------------------------------
 
 entity neptuno_top is
@@ -121,49 +125,10 @@ architecture RTL of neptuno_top is
 	signal joyc : std_logic_vector(7 downto 0);
 	signal joyd : std_logic_vector(7 downto 0);
 
-   signal  DAC_L : std_logic_vector(9 downto 0);
-	signal  DAC_R : std_logic_vector(9 downto 0);
+   signal  DAC_L : std_logic_vector(15 downto 0);
+	signal  DAC_R : std_logic_vector(15 downto 0);
 	
-COMPONENT  MTX512
-	PORT
-	(
-		CLOCK_27 :	IN STD_LOGIC;
-		--RESET_N :   IN std_logic;
-		SDRAM_DQ		:	 INOUT STD_LOGIC_VECTOR(15 DOWNTO 0);
-		SDRAM_A		:	 OUT STD_LOGIC_VECTOR(12 DOWNTO 0);
-		SDRAM_DQML		:	 OUT STD_LOGIC;
-		SDRAM_DQMH		:	 OUT STD_LOGIC;
-		SDRAM_nWE		:	 OUT STD_LOGIC;
-		SDRAM_nCAS		:	 OUT STD_LOGIC;
-		SDRAM_nRAS		:	 OUT STD_LOGIC;
-		SDRAM_nCS		:	 OUT STD_LOGIC;
-		SDRAM_BA		:	 OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-		SDRAM_CLK		:	 OUT STD_LOGIC;
-		SDRAM_CKE		:	 OUT STD_LOGIC;
-		-- UART
-		UART_TX    :   OUT STD_LOGIC;
-		UART_RX    :   IN STD_LOGIC;
-		SPI_DO		:	 OUT STD_LOGIC;
---		SPI_SD_DI	:	 IN STD_LOGIC;
-		SPI_DI		:	 IN STD_LOGIC;
-		SPI_SCK		:	 IN STD_LOGIC;
-		SPI_SS2		:	 IN STD_LOGIC;
-		SPI_SS3		:	 IN STD_LOGIC;
---		SPI_SS4		:	 IN STD_LOGIC;
-		CONF_DATA0		:	 IN STD_LOGIC;
-		VGA_HS		:	 OUT STD_LOGIC;
-		VGA_VS		:	 OUT STD_LOGIC;
-		VGA_R		:	 OUT STD_LOGIC_VECTOR(5 DOWNTO 0);
-		VGA_G		:	 OUT STD_LOGIC_VECTOR(5 DOWNTO 0);
-		VGA_B		:	 OUT STD_LOGIC_VECTOR(5 DOWNTO 0);
-		AUDIO_L  : out std_logic;
-		AUDIO_R  : out std_logic;
-		LED      : out std_logic;
-		DAC_L    : out std_logic_vector(9 downto 0);
-	   DAC_R    : out std_logic_vector(9 downto 0)
-
-	);
-END COMPONENT;
+	
 component audio_top is
 Port ( 	
 		clk_50MHz : in STD_LOGIC; -- system clock (50 MHz)
@@ -272,8 +237,8 @@ port map(
 	R_data    => std_logic_vector(audio_r_s)
 );		
 
-audio_l_s <= '0' & DAC_L & "00000";
-audio_r_s <= '0' & DAC_R & "00000";
+audio_l_s <= DAC_L ;
+audio_r_s <= DAC_R ;
 
 	-- JOYSTICKS
 joy: joydecoder
@@ -296,7 +261,7 @@ joy: joydecoder
 		joy2fire2		=> joy2fire2
 	);
 	
-guest: COMPONENT  MTX512
+guest: COMPONENT  guest_mist
 	PORT map
 	(
 		CLOCK_27 => clock_50_i,
