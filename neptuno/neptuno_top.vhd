@@ -26,9 +26,9 @@ entity neptuno_top is
 		DRAM_RAS_N		:	 OUT STD_LOGIC;
 		VGA_HS		:	 OUT STD_LOGIC;
 		VGA_VS		:	 OUT STD_LOGIC;
-		VGA_R		:	 OUT STD_LOGIC_VECTOR(4 DOWNTO 0);
-		VGA_G		:	 OUT STD_LOGIC_VECTOR(4 DOWNTO 0);
-		VGA_B		:	 OUT STD_LOGIC_VECTOR(4 DOWNTO 0);
+		VGA_R		:	 OUT STD_LOGIC_VECTOR(5 DOWNTO 0);
+		VGA_G		:	 OUT STD_LOGIC_VECTOR(5 DOWNTO 0);
+		VGA_B		:	 OUT STD_LOGIC_VECTOR(5 DOWNTO 0);
 		-- AUDIO
 		SIGMA_R                     : OUT STD_LOGIC;
 		SIGMA_L                     : OUT STD_LOGIC;
@@ -216,9 +216,9 @@ stm_rst_o <= '0';
 --process(clk_sys)
 --begin
 --	if rising_edge(clk_sys) then
-		VGA_R<=vga_red(7 downto 3);
-		VGA_G<=vga_green(7 downto 3);
-		VGA_B<=vga_blue(7 downto 3);
+		VGA_R<=vga_red(7 downto 2);
+		VGA_G<=vga_green(7 downto 2);
+		VGA_B<=vga_blue(7 downto 2);
 		VGA_HS<=vga_hsync;
 		VGA_VS<=vga_vsync;
 --	end if;
@@ -312,6 +312,7 @@ sd_clk <= spi_clk_int;
 controller : entity work.substitute_mcu
 	generic map (
 		sysclk_frequency => 500,
+		SPI_INTERNALBIT  => 1,
 		debug => false,
 		jtag_uart => false
 		

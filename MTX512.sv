@@ -71,19 +71,19 @@ localparam CONF_STR = {
 
 /////////////////  CLOCKS  ////////////////////////
 
-wire clk_25Mhz,clk_ram,clk_ram_ph,locked,clk_50Mhz,clk_cpu;
+wire clk_24Mhz,clk_ram,clk_ram_ph,locked,clk_48Mhz,clk_cpu;
 
 pll pll
 (
 	.inclk0(CLOCK_27),
-	.c0(clk_50Mhz),
-	.c1(clk_25Mhz),
+	.c0(clk_48Mhz),
+	.c1(clk_24Mhz),
 	.c2(clk_ram),
 	.c3(clk_ram_ph),
 	.locked(locked)
 );
 
-wire clk_sys=clk_25Mhz;
+wire clk_sys=clk_24Mhz;
 
 
 ///////////////// SDRAM ///////////////////////////
@@ -115,6 +115,7 @@ sram ram
 	.ready(ram_ready)
 );
 assign SDRAM_CLK=clk_ram_ph;
+
 /////////////////  HPS  ///////////////////////////
 
 
@@ -245,7 +246,7 @@ wire [2:0] CpuSpeed = status[7:5] ;
 
 rememotech rememotech
     (
-    .CLOCK_50            (clk_50Mhz),//(clk),//(status[9]),//(clk_50MhzM),
+    .CLOCK_50            (clk_48Mhz),
     // SD card
     .SD_CLK              (sdclk),
     .SD_CMD              (sdmosi),
@@ -275,7 +276,7 @@ rememotech rememotech
  	 .VGA_HB              (HBlank),
 	 .VGA_VB              (VBlank),
 
-	 .clk_video_i         (clk_25Mhz),
+	 .clk_video_i         (clk_24Mhz),
     .clk_cpu_o           (clk_cpu),
 	 
 	 .PS2_CLK             (ps2_kbd_clk),
@@ -293,10 +294,6 @@ rememotech rememotech
 
 wire [7:0] AudioOut;
 
-//wire key_strobe = old_keystb ^ ps2_key[10];
-//reg old_keystb = 0;
-//always @(posedge clk_sys) old_keystb <= ps2_key[10];
-
 
 
 /////////////////  VIDEO  /////////////////////////
@@ -307,8 +304,8 @@ wire [3:0] r,g,b;
 video_mixer #(.LINE_LENGTH(380)) video_mixer
 (
    .*,
-   .ce_pix(clk_25Mhz),
-   .ce_pix_actual(clk_25Mhz),
+   .ce_pix(clk_24Mhz),
+   .ce_pix_actual(clk_24Mhz),
    .scandoubler_disable(1),
    .hq2x(0),
    .mono(0),
