@@ -5,4 +5,5 @@ set_global_assignment -name VERILOG_FILE ../sys/mist_io.v
 set_global_assignment -name VERILOG_FILE ../sys/osd.v
 set_global_assignment -name VHDL_FILE ../sys/dac_dsm2v.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE ../sys/sd_card.sv
+#set_global_assignment -name VERILOG_FILE ../sys/sd_card.v
 set_global_assignment -name SYSTEMVERILOG_FILE ../sys/sram.sv

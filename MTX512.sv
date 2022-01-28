@@ -64,7 +64,7 @@ localparam CONF_STR = {
 		  "F0,ROM,Load ROM;",
         "O2,PAL,Normal,Marat;",
         "O3,Hz,60,50;",
-        "O57,Cpu Mhz,25,12.5,8.333,6.25,5,4.166,3.571,3.125;",
+        "O57,Cpu Mhz,24,12,8,6,4.8,4,3.42,3;",
         "T0,Reset;",
         "V,v",`BUILD_DATE 
 };
@@ -239,7 +239,7 @@ wire VSync;
 
 
 
-wire [2:0] CpuSpeed = status[7:5];
+wire [2:0] CpuSpeed = status[7:5] ;
 
 
 
@@ -336,14 +336,15 @@ wire sdmosi;
 wire sdss;
 
 wire vsdmiso;
-wire sdhc=1'b0;
+
+assign sd_sdhc = 1'b0;
 
 sd_card sd_card
 (
         .*,
-		  //.clk_sys(clk_50Mhz),
+		  .clk_sys(clk_ram),
         .clk_spi(clk_ram), 
-        .sdhc(sdhc),
+        .sdhc(sd_sdhc),
         .sck(sdclk),
         .ss(sdss),
         .mosi(sdmosi),
@@ -353,7 +354,7 @@ sd_card sd_card
 //sd_card sd_card
 //(
 //        .*,
-//		  //.clk_sys(clk_),
+//		  .clk_sys(clk_ram_ph),
 //        //.clk_spi(clk_ram),
 //		  .img_mounted(img_mounted[0]),
 //		  .allow_sdhc(0),

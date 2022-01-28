@@ -34,12 +34,16 @@ entity rememotech is
     SRAM_D              : out std_logic_vector(7 downto 0);
     SRAM_Q              : in std_logic_vector(7 downto 0);
 	 SRAM_RDY            : in std_logic;
-    -- SD card
+	 -- CPU
+	 BUSRQ_n             : in std_logic;
+	 -- SD card
     SD_CLK              : out std_logic;
     SD_CMD              : out std_logic;
     SD_DAT              : in  std_logic;
     SD_DAT3             : out std_logic;
-
+    -- PS/2 keyboard
+    PS2_CLK             : in std_logic;
+    PS2_DAT             : in std_logic;
     -- switches
     SW                  : in  std_logic_vector(9 downto 0);
     -- key switches
@@ -82,19 +86,21 @@ entity rememotech is
     -- Daughter board, 2nd monitor
     G1_R,G1_G,G1_B      : out std_logic_vector(3 downto 0);
     G1_HS,G1_VS         : out std_logic;
-	 -- Clocks
-	 clk_video_i         : in std_logic;
- 	 clk_cpu_o			   : out std_logic;
-
+	 
+	 Clk_Video           : out std_logic;
     --
 	 LED                 : out std_logic;
 	 --
-	 PS2_CLK             : in std_logic;
-	 PS2_DAT             : in std_logic;
+	 Bram_Data 				: out STD_LOGIC_VECTOR (15 DOWNTO 0);
+	 Z80_Addr 				: out STD_LOGIC_VECTOR (15 DOWNTO 0);
+	 Z80_Data 				: out STD_LOGIC_VECTOR (15 DOWNTO 0);
+	 Z80F_BData    		: out STD_LOGIC_VECTOR (15 DOWNTO 0);
+	 Hex						: out STD_LOGIC_VECTOR (15 DOWNTO 0);
 	 EKey           		: in std_logic;
     key_ready  			: in  std_logic;
     key_stroke 			: in  std_logic;
     key_code   			: in  std_logic_vector(9 downto 0);
+	 --clk_sys					: out std_logic;
 	 -- Audio
 	 sound_out	    		: out std_logic_vector(7 downto 0)
 	 
@@ -109,14 +115,14 @@ architecture behavior of rememotech is
     port
       (
       clk_50mhz   : in  std_logic;
-		ram_ready   : in  std_logic;
       div_cpu     : in  std_logic_vector(2 downto 0);
       clk_cpu     : out std_logic;
       clk_timer16 : out std_logic;
       clk_counter : out std_logic;
       clk_25mhz   : out std_logic;
       clk_4mhz    : out std_logic;
-      clk_1mhz    : out std_logic
+      clk_1mhz    : out std_logic;
+		ram_ready   : in  std_logic
       );
   end component;
 
@@ -450,27 +456,6 @@ architecture behavior of rememotech is
       phys_addr : out std_logic_vector(21 downto 13)
       );
   end component;
-  
-  component speculator is
-    port
-      (
-      extras    : in    std_logic;
-      RESET     : in    std_logic; 
-      m49       : in    std_logic;
-      PHI       : in    std_logic;
-      MREQ_n    : in    std_logic;
-      IORQ_n    : in    std_logic;
-      RD_n      : in    std_logic;
-      WR_n      : in    std_logic;
-      iobyte    : in    std_logic_vector( 7 downto 0);
-      A         : in    std_logic_vector(15 downto 0);
-      DI        : in    std_logic_vector( 7 downto 0);
-      DO        : out   std_logic_vector( 7 downto 0);
-      DO_valid  : out   std_logic;
-      INT_n     : in    std_logic;
-      NMI_n     : out   std_logic
-      );
-  end component;
 
   component accelerator is
     port
@@ -619,15 +604,6 @@ architecture behavior of rememotech is
   signal phys_addr : std_logic_vector(21 downto 13);
   signal flash_vis : std_logic;
 
-  -- Speculator
-  signal spec_extras   : std_logic := '0';
-  signal spec_DO       : std_logic_vector(7 downto 0);
-  signal spec_DO_valid : std_logic;
-  
-  signal romswe        : std_logic;
-  signal real_cassete  : std_logic;
-  
-  
   -- Accelerator
   signal accel_enabled  : std_logic := '0';
   signal accel_DO       : std_logic_vector(7 downto 0);
@@ -658,7 +634,6 @@ architecture behavior of rememotech is
   signal IORQ_n  : std_logic;
   signal RD_n    : std_logic;
   signal WR_n    : std_logic;
-  signal NMI_n   : std_logic;
   signal A       : std_logic_vector(15 downto 0);
   signal DI      : std_logic_vector(7 downto 0);
   signal DO      : std_logic_vector(7 downto 0);
@@ -676,7 +651,8 @@ architecture behavior of rememotech is
 --  signal SRAM_D	: std_logic_vector(15 downto 0);
 --  signal SRAM_Q	: std_logic_vector(15 downto 0);  
   
-
+--MVM
+  signal clk_25mhz_bak : std_logic;
   
 begin
 
@@ -684,14 +660,14 @@ begin
     port map
       (
       clk_50mhz   => CLOCK_50,
-		ram_ready   => SRAM_RDY,
       div_cpu     => div_cpu,
       clk_cpu     => clk_cpu,
       clk_timer16 => ctc_timer16,
       clk_counter => ctc_counter,
-      clk_25mhz   => open,
+      clk_25mhz   => clk_25mhz,
       clk_4mhz    => clk_4mhz,
-      clk_1mhz    => clk_1mhz
+      clk_1mhz    => clk_1mhz,
+		ram_ready   => SRAM_RDY
       );
 
   U_CELL : mon_cell
@@ -746,6 +722,36 @@ begin
       q_vdp     => vdp_vram_q
       );
 
+
+		
+--  U_Memory : Memory
+--    port map (
+--      clk_host  => clk_cpu,
+--
+--      addr_host => SRAM_ADDR,
+--      d_host    => SRAM_D,
+--      lb_host   => not SRAM_LB_N,
+--      ub_host   => not SRAM_UB_N,
+--      we_host   => not SRAM_WE_N, 
+--      ce_host   => not SRAM_CE_N, 
+--      oe_host   => not SRAM_OE_N, 
+--	 
+--      q_host    => SRAM_Q
+--
+--      );
+
+
+--	U_RamRom	: RamRom
+--	port map (
+--		address 	=> SRAM_ADDR,
+--		byteena 	=> not SRAM_UB_N & not SRAM_LB_N,
+--		clken 	=> not SRAM_CE_N, --Dejo sin usar la señal OutputEnable que si usa el core Posible Punto de Fallo.
+--		clock 	=> CLOCK_50 ,
+--		rden     => not SRAM_OE_n,
+--		data 		=> SRAM_D ,
+--		wren 		=> not SRAM_WE_N,
+--		q 			=> SRAM_Q 
+--	);
 
 		
 		
@@ -836,7 +842,7 @@ begin
   U_MTXKBD : mtx_kbd
     port map
       (
-      clk_1mhz   => clk_25Mhz,
+      clk_1mhz   => CLOCK_50,--clk_1mhz,
       key_ready  => key_ready,
       key_stroke => key_stroke,
       key_code   => key_code,
@@ -915,26 +921,6 @@ begin
       phys_addr => phys_addr
       );
 
-	U_SPECULATOR : speculator
-    port map
-      (
-      extras   => spec_extras,
-      RESET    => not RESET_n,
-      m49      => CLOCK_50,
-      PHI      => clk_cpu,
-      MREQ_n   => MREQ_n,
-      IORQ_n   => IORQ_n,
-      RD_n     => RD_n,
-      WR_n     => WR_n,
-      iobyte   => iobyte,
-      A        => A,
-      DI       => DO,
-      DO       => spec_DO,
-      DO_valid => spec_DO_valid,
-      INT_n    => not ctc_interrupt,
-      NMI_n    => NMI_n
-      );	
-		
   U_ACCELERATOR : accelerator
     port map
       (
@@ -991,10 +977,10 @@ begin
       RESET_n => RESET_n,
       CLK_n   => clk_cpu,
       CLKEN   => one,
-      WAIT_n  => SRAM_RDY,
+      WAIT_n  => one,
       INT_n   => not ctc_interrupt,
-      NMI_n   => NMI_n,
-      BUSRQ_n => one,
+      NMI_n   => one,
+      BUSRQ_n => BUSRQ_n,
       M1_n    => M1_n,
       MREQ_n  => MREQ_n,
       IORQ_n  => IORQ_n,
@@ -1012,14 +998,26 @@ begin
   RESET_n <= not KEY(3);-- and ( extra_keys(12) or extra_keys(13) );
   --extra_keys <= "11111111111111";-- & EKey; 
   
-  clk_25Mhz <= clk_video_i;
-  clk_cpu_o   <= clk_cpu;
+  Clk_Video <= clk_25mhz; --Sacamos a fuera el clock con el que mandamos sobre el vdp, supuestamente Clock de Video.
+  --clk_25mhz <= Clk_Video;
+  
+  --clk_sys <= clk_cpu; --Sacamos a fuera el clock de CPU como clk_sys para darselo a HPS_IO
+  
+  
   sound_out <= sound_output;
   
   
   -- Is the Flash memory visible in the Z80 address space?
   flash_vis <= '1' when ( iobyte(3 downto 0) = "1111" ) else '0';
-    
+  
+  Bram_Data <= SRAM_Q & SRAM_Q;
+  Z80_Addr <= A;
+  Z80_DATA <= DI & DO;
+  Z80F_BData <= "000" & oe & "000" & fe & "000" & se & "000" & we;
+  Hex <= digit3 & digit2 & digit1 & digit0;
+  
+ 
+ 
 
   -- Set clock speed according to user choice
   -- but as I can't easily get wait states to work
@@ -1093,7 +1091,6 @@ begin
       otstb_n            <= '1';
       strobe_n           <= '1';
       rom2subpage        <= "000";
-		spec_extras        <= '0';
     elsif rising_edge(clk_cpu) then
       host_cell_addr     <= host_cell_addr;
       host_cell_write    <= host_cell_write;
@@ -1234,7 +1231,6 @@ begin
           when x"d6" | x"d7" =>
             sd_temp    <= (others => '1');
           when x"da" =>
-            spec_extras   <= DO(7);
             accel_enabled <= DO(6);
           when others =>
             -- nothing
@@ -1298,8 +1294,6 @@ begin
         DI <= SRAM_Q;--SRAM_DQ(15 downto 8);
       elsif fe = '1' then
         DI <= FL_DQ;
-		elsif spec_DO_valid = '1'then 
-		  DI <= spec_DO;
       elsif ere = '1' then
         DI <= G1_D;
       else
@@ -1347,8 +1341,7 @@ begin
           when x"d4" => DI <= sd_ready & sd_temp(24) & "000000";
           when x"d6"|x"d7" => DI <= sd_data;
           when x"d8" => DI <= "00000" & div_cpu;
-			 when x"d9" => DI <= "00000000"; --rememorizer
-          when x"da" => DI <= spec_extras & accel_enabled & "000000"; -- speculator
+          when x"da" => DI <= "0" & accel_enabled & "000000";
           when others => DI <= "XXXXXXXX";
         end case;
       end if;
@@ -1369,7 +1362,7 @@ begin
   -- 25 bit counter, 2**25/25000000 = 1.34s of flickering, and the SD Card
   -- driver should consider drive warm for the first half of that
   --LED <= '0' when ( sd_temp = "00000000000000000000000000" ) else sd_temp(19);
-  LED <= key_ready;
+  LED <= not RESET_n;
   -- VGA monitor displays either 80 column or VDP
   VGA_R  <= vdp_r      when ( SW(6) = '1' ) else mon_r&mon_r&mon_r&mon_r;
   VGA_G  <= vdp_g      when ( SW(6) = '1' ) else mon_g&mon_g&mon_g&mon_g;
@@ -1379,7 +1372,9 @@ begin
   VGA_HB <= vdp_hblank when ( SW(6) = '1' ) else mon_hblank;
   VGA_VB <= vdp_vblank when ( SW(6) = '1' ) else mon_vblank;
 
-
+  -- TODO Hasta que lo implkemente en em modulo mon como en vdp
+  --mon_hblank <= '0';
+  --mon_vblank <= '0';
   
   -- 2nd VGA monitor displays the opposite
   G1_R   <= vdp_r     when ( SW(6) = '0' ) else mon_r&mon_r&mon_r&mon_r;
