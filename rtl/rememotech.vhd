@@ -991,7 +991,7 @@ begin
       RESET_n => RESET_n,
       CLK_n   => clk_cpu,
       CLKEN   => one,
-      WAIT_n  => one,
+      WAIT_n  => SRAM_RDY,
       INT_n   => not ctc_interrupt,
       NMI_n   => NMI_n,
       BUSRQ_n => one,
