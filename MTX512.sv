@@ -337,30 +337,19 @@ wire sdss;
 
 wire vsdmiso;
 
-assign sd_sdhc = 1'b0;
+//assign sd_sdhc = 1'b0;
+
+
 
 sd_card sd_card
 (
         .*,
-		  .clk_sys(clk_ram),
-        .clk_spi(clk_ram), 
-        .sdhc(sd_sdhc),
-        .sck(sdclk),
-        .ss(sdss),
-        .mosi(sdmosi),
-        .miso(vsdmiso)
+		  .clk_sys(clk_ram_ph),
+		  .img_mounted(img_mounted[0]),
+		  .allow_sdhc(sd_sdhc),
+        .sd_sck(sdclk),
+        .sd_cs(sdss),
+        .sd_sdi(sdmosi),
+        .sd_sdo(vsdmiso)
 );
-
-//sd_card sd_card
-//(
-//        .*,
-//		  .clk_sys(clk_ram_ph),
-//        //.clk_spi(clk_ram),
-//		  .img_mounted(img_mounted[0]),
-//		  .allow_sdhc(0),
-//        .sd_sck(sdclk),
-//        .sd_cs(sdss),
-//        .sd_sdi(sdmosi),
-//        .sd_sdo(vsdmiso)
-//);
 endmodule

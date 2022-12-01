@@ -160,7 +160,7 @@ always @(posedge clk_sys) begin
     old_mounted <= img_mounted;
     if (~old_mounted & img_mounted) begin
         vhd <= |img_size;
-        vhd_size <= img_size;
+        vhd_size <= img_size[40:0];
     end
 end
 
@@ -502,6 +502,9 @@ always@(posedge clk_sys) begin
                         reply3 <= OCR[7:0];
                         reply_len <= 4'd4;
                     end
+
+                    // CMD59: CRC_ON_OFF
+                    8'h7b: reply <= 0;     // ok
 
                     endcase
                 end
